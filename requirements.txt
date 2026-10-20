@@ -1,0 +1,4 @@
+flask
+cryptography
+argon2-cffi
+mysql-connector-python
