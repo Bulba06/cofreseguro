@@ -49,7 +49,9 @@
       border: 1px solid var(--borda); border-radius: 10px; padding: 12px 14px;
       margin-top: 10px;
     }
+    .entrada .cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .entrada .tit { font-weight: 600; }
+    .entrada .ctrl { display: flex; gap: 6px; flex: 0 0 auto; }
     .entrada .meta { color: var(--sub); font-size: .82rem; margin-top: 2px; }
     .entrada .senha {
       font-family: ui-monospace, monospace; margin-top: 8px; display: flex;
@@ -181,6 +183,11 @@
       }
     }
 
+    async function mover(id, direcao) {
+      await api("/mover", "POST", { id: id, direcao: direcao });
+      listar();
+    }
+
     async function listar() {
       const { ok, dados } = await api("/listar", "GET");
       const div = document.getElementById("lista");
@@ -196,15 +203,22 @@
         card.className = "entrada";
         const meta = [e.usuario_servico, e.url].filter(Boolean).join(" · ");
         card.innerHTML =
-          '<div class="tit"></div>' +
+          '<div class="cab"><div class="tit"></div>' +
+          '<div class="ctrl">' +
+          '<button class="sec mini" title="Mover para cima">↑</button>' +
+          '<button class="sec mini" title="Mover para o topo">Topo</button>' +
+          '</div></div>' +
           (meta ? '<div class="meta"></div>' : '') +
           '<div class="senha"><code>••••••••</code>' +
           '<button class="sec mini">Mostrar</button>' +
           '<button class="sec mini">Copiar</button></div>';
         card.querySelector(".tit").textContent = e.titulo;
         if (meta) card.querySelector(".meta").textContent = meta;
+        const ctrl = card.querySelectorAll(".ctrl button");
+        ctrl[0].onclick = () => mover(e.id, "cima");
+        ctrl[1].onclick = () => mover(e.id, "topo");
         const code = card.querySelector("code");
-        const btns = card.querySelectorAll("button");
+        const btns = card.querySelectorAll(".senha button");
         let visivel = false;
         btns[0].onclick = () => {
           visivel = !visivel;
