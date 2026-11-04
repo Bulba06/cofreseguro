@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CofreSeguro</title>
+  <style>
+    :root {
+      --bg: #0f1115; --card: #1a1d24; --borda: #2a2f3a;
+      --txt: #e6e8ec; --sub: #9aa0ab; --acc: #4f8cff; --acc2: #3a6fd0;
+      --erro: #ff6b6b; --ok: #37c978;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--txt);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    }
+    header { padding: 28px 16px 8px; text-align: center; }
+    header h1 { margin: 0; font-size: 1.6rem; letter-spacing: .5px; }
+    header p { margin: 4px 0 0; color: var(--sub); font-size: .9rem; }
+    main { width: 100%; max-width: 560px; padding: 16px; }
+    .card {
+      background: var(--card); border: 1px solid var(--borda);
+      border-radius: 14px; padding: 22px; margin-bottom: 16px;
+    }
+    h2 { margin: 0 0 16px; font-size: 1.15rem; }
+    label { display: block; font-size: .82rem; color: var(--sub); margin: 10px 0 4px; }
+    input {
+      width: 100%; padding: 11px 12px; border-radius: 9px;
+      border: 1px solid var(--borda); background: #12151b; color: var(--txt);
+      font-size: .95rem;
+    }
+    input:focus { outline: none; border-color: var(--acc); }
+    .linha { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    button {
+      flex: 1; min-width: 120px; padding: 11px 14px; border: none; border-radius: 9px;
+      background: var(--acc); color: #fff; font-size: .92rem; font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: var(--acc2); }
+    button.sec { background: transparent; border: 1px solid var(--borda); color: var(--txt); }
+    button.sec:hover { background: #222633; }
+    .msg { margin-top: 14px; font-size: .88rem; min-height: 1.1em; }
+    .msg.erro { color: var(--erro); }
+    .msg.ok { color: var(--ok); }
+    .oculto { display: none; }
+    .entrada {
+      border: 1px solid var(--borda); border-radius: 10px; padding: 12px 14px;
+      margin-top: 10px;
+    }
+    .entrada .tit { font-weight: 600; }
+    .entrada .meta { color: var(--sub); font-size: .82rem; margin-top: 2px; }
+    .entrada .senha {
+      font-family: ui-monospace, monospace; margin-top: 8px; display: flex;
+      align-items: center; gap: 8px;
+    }
+    .entrada .senha code { background: #12151b; padding: 5px 9px; border-radius: 7px; letter-spacing: 1px; }
+    .mini { flex: 0 0 auto; min-width: 0; padding: 5px 10px; font-size: .78rem; }
+    .vazio { color: var(--sub); font-size: .88rem; margin-top: 12px; }
+    #topo-cofre { display: flex; justify-content: space-between; align-items: center; }
+    #topo-cofre button { flex: 0 0 auto; min-width: 0; padding: 7px 14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔐 CofreSeguro</h1>
+    <p>Gerenciador de senhas — Projeto Integrador 4</p>
+  </header>
+  <main>
+
+    <div class="card" id="tela-bloqueio">
+      <h2>Acesse seu cofre</h2>
+      <label>Usuário</label>
+      <input id="in-usuario" autocomplete="off">
+      <label>Senha-mestra</label>
+      <input id="in-senha-mestra" type="password">
+      <div class="linha">
+        <button onclick="desbloquear()">Desbloquear</button>
+        <button class="sec" onclick="criarUsuario()">Criar cofre</button>
+      </div>
+      <div class="msg" id="msg-bloqueio"></div>
+    </div>
+
+    <div class="card oculto" id="tela-cofre">
+      <div id="topo-cofre">
+        <h2 style="margin:0">Suas senhas</h2>
+        <button class="sec" onclick="bloquear()">Bloquear</button>
+      </div>
+
+      <div style="margin-top:18px; padding-top:18px; border-top:1px solid var(--borda)">
+        <label>Título (ex: Nubank)</label>
+        <input id="in-titulo" autocomplete="off">
+        <label>Usuário do serviço (opcional)</label>
+        <input id="in-usuario-servico" autocomplete="off">
+        <label>Senha</label>
+        <div style="display:flex; gap:8px">
+          <input id="in-senha" autocomplete="off">
+          <button class="sec mini" onclick="gerarSenha()">Gerar</button>
+        </div>
+        <div class="linha">
+          <button onclick="adicionar()">Adicionar senha</button>
+        </div>
+        <div class="msg" id="msg-cofre"></div>
+      </div>
+
+      <div id="lista"></div>
+    </div>
+
+  </main>
+
+  <script>
+    async function api(rota, metodo, corpo) {
+      const opt = { method: metodo, headers: { "Content-Type": "application/json" } };
+      if (corpo) opt.body = JSON.stringify(corpo);
+      const r = await fetch(rota, opt);
+      const dados = await r.json().catch(() => ({}));
+      return { ok: r.ok, dados };
+    }
+    function msg(id, texto, tipo) {
+      const el = document.getElementById(id);
+      el.textContent = texto || "";
+      el.className = "msg " + (tipo || "");
+    }
+
+    async function criarUsuario() {
+      const nome = document.getElementById("in-usuario").value;
+      const senha = document.getElementById("in-senha-mestra").value;
+      const { ok, dados } = await api("/criar_usuario", "POST",
+        { nome_usuario: nome, senha_mestra: senha });
+      if (ok) msg("msg-bloqueio", "Cofre criado! Agora clique em Desbloquear.", "ok");
+      else msg("msg-bloqueio", dados.erro || "Erro ao criar.", "erro");
+    }
+
+    async function desbloquear() {
+      const nome = document.getElementById("in-usuario").value;
+      const senha = document.getElementById("in-senha-mestra").value;
+      const { ok, dados } = await api("/desbloquear", "POST",
+        { nome_usuario: nome, senha_mestra: senha });
+      if (ok) {
+        document.getElementById("tela-bloqueio").classList.add("oculto");
+        document.getElementById("tela-cofre").classList.remove("oculto");
+        listar();
+      } else {
+        msg("msg-bloqueio", dados.erro || "Erro ao desbloquear.", "erro");
+      }
+    }
+
+    async function bloquear() {
+      await api("/bloquear", "POST");
+      document.getElementById("tela-cofre").classList.add("oculto");
+      document.getElementById("tela-bloqueio").classList.remove("oculto");
+      document.getElementById("in-senha-mestra").value = "";
+      msg("msg-bloqueio", "Cofre bloqueado.", "ok");
+    }
+
+    function gerarSenha() {
+      const cjt = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
+      const arr = new Uint32Array(16);
+      crypto.getRandomValues(arr);
+      let s = "";
+      for (const n of arr) s += cjt[n % cjt.length];
+      document.getElementById("in-senha").value = s;
+    }
+
+    async function adicionar() {
+      const corpo = {
+        titulo: document.getElementById("in-titulo").value,
+        usuario_servico: document.getElementById("in-usuario-servico").value,
+        senha: document.getElementById("in-senha").value,
+      };
+      const { ok, dados } = await api("/adicionar", "POST", corpo);
+      if (ok) {
+        msg("msg-cofre", "Senha adicionada!", "ok");
+        document.getElementById("in-titulo").value = "";
+        document.getElementById("in-usuario-servico").value = "";
+        document.getElementById("in-senha").value = "";
+        listar();
+      } else {
+        msg("msg-cofre", dados.erro || "Erro ao adicionar.", "erro");
+      }
+    }
+
+    async function listar() {
+      const { ok, dados } = await api("/listar", "GET");
+      const div = document.getElementById("lista");
+      if (!ok) return;
+      const entradas = dados.entradas || [];
+      if (entradas.length === 0) {
+        div.innerHTML = '<div class="vazio">Nenhuma senha guardada ainda.</div>';
+        return;
+      }
+      div.innerHTML = "";
+      for (const e of entradas) {
+        const card = document.createElement("div");
+        card.className = "entrada";
+        const meta = [e.usuario_servico, e.url].filter(Boolean).join(" · ");
+        card.innerHTML =
+          '<div class="tit"></div>' +
+          (meta ? '<div class="meta"></div>' : '') +
+          '<div class="senha"><code>••••••••</code>' +
+          '<button class="sec mini">Mostrar</button>' +
+          '<button class="sec mini">Copiar</button></div>';
+        card.querySelector(".tit").textContent = e.titulo;
+        if (meta) card.querySelector(".meta").textContent = meta;
+        const code = card.querySelector("code");
+        const btns = card.querySelectorAll("button");
+        let visivel = false;
+        btns[0].onclick = () => {
+          visivel = !visivel;
+          code.textContent = visivel ? e.senha : "••••••••";
+          btns[0].textContent = visivel ? "Ocultar" : "Mostrar";
+        };
+        btns[1].onclick = () => navigator.clipboard.writeText(e.senha);
+        div.appendChild(card);
+      }
+    }
+  </script>
+</body>
+</html>
