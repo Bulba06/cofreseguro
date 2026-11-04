@@ -79,6 +79,23 @@ def listar():
     return jsonify({"entradas": cofre.listar_entradas(s["id_usuario"], s["chave"])})
 
 
+@app.route("/mover", methods=["POST"])
+def mover():
+    s = _sessao_atual()
+    if not s:
+        return jsonify({"erro": "Cofre bloqueado."}), 401
+    dados = request.get_json(silent=True) or {}
+    id_entrada = dados.get("id")
+    direcao = dados.get("direcao")
+    if not id_entrada:
+        return jsonify({"erro": "Entrada inválida."}), 400
+    if direcao == "topo":
+        cofre.mover_para_topo(s["id_usuario"], id_entrada)
+    else:
+        cofre.mover_para_cima(s["id_usuario"], id_entrada)
+    return jsonify({"ok": True})
+
+
 @app.route("/bloquear", methods=["POST"])
 def bloquear():
     token = session.pop("token", None)
