@@ -9,8 +9,6 @@ CREATE DATABASE IF NOT EXISTS cofreseguro
 USE cofreseguro;
 
 -- 1. usuario: a conta e os dados necessarios para abrir o cofre.
---    'salt' alimenta o Argon2; 'verificador' e um valor conhecido cifrado,
---    usado para checar a senha-mestra sem nunca armazena-la.
 CREATE TABLE usuario (
     id INT NOT NULL AUTO_INCREMENT,
     nome_usuario VARCHAR(50) NOT NULL UNIQUE,
@@ -29,8 +27,8 @@ CREATE TABLE categoria (
     FOREIGN KEY (id_usuario) REFERENCES usuario(id)
 ) ENGINE=InnoDB;
 
--- 3. entrada: cada credencial guardada. A senha fica SEMPRE cifrada em
---    'senha_cifrada' (nonce + texto cifrado + tag, tudo junto em bytes).
+-- 3. entrada: cada credencial guardada. A senha fica SEMPRE cifrada.
+--    'ordem' define a posicao da entrada na lista (reordenavel pelo usuario).
 CREATE TABLE entrada (
     id INT NOT NULL AUTO_INCREMENT,
     id_usuario INT NOT NULL,
@@ -39,6 +37,7 @@ CREATE TABLE entrada (
     usuario_servico VARCHAR(150) NULL,
     url VARCHAR(255) NULL,
     senha_cifrada VARBINARY(255) NOT NULL,
+    ordem INT NOT NULL DEFAULT 0,
     criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -46,8 +45,7 @@ CREATE TABLE entrada (
     FOREIGN KEY (id_categoria) REFERENCES categoria(id)
 ) ENGINE=InnoDB;
 
--- 4. historico_entrada: guarda versoes antigas da senha cifrada. Vai ser
---    preenchida automaticamente por um trigger quando a senha mudar.
+-- 4. historico_entrada: versoes antigas da senha (preenchida por trigger).
 CREATE TABLE historico_entrada (
     id INT NOT NULL AUTO_INCREMENT,
     id_entrada INT NOT NULL,
@@ -57,8 +55,7 @@ CREATE TABLE historico_entrada (
     FOREIGN KEY (id_entrada) REFERENCES entrada(id)
 ) ENGINE=InnoDB;
 
--- 5. log_auditoria: registro de acoes (quem mexeu em que). Tambem vai ser
---    preenchida por triggers, nao pela aplicacao.
+-- 5. log_auditoria: registro de acoes (preenchida por triggers).
 CREATE TABLE log_auditoria (
     id INT NOT NULL AUTO_INCREMENT,
     id_usuario INT NULL,
@@ -70,7 +67,6 @@ CREATE TABLE log_auditoria (
 ) ENGINE=InnoDB;
 
 -- 6. configuracao: preferencias por usuario (ex: tempo de bloqueio do cofre).
---    A dupla (id_usuario, chave) e unica: cada usuario tem uma config por chave.
 CREATE TABLE configuracao (
     id INT NOT NULL AUTO_INCREMENT,
     id_usuario INT NOT NULL,
