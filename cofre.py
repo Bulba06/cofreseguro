@@ -37,7 +37,7 @@ def criar_usuario(nome_usuario, senha_mestra):
 
 def desbloquear(nome_usuario, senha_mestra):
     """Confere a senha-mestra. Se certa, devolve o id do usuario e a chave
-    derivada (usada depois para cifrar/decifrar). Se errada, devolve None."""
+    derivada. Se errada, devolve None."""
     linhas = db.consultar(
         "SELECT id, salt, verificador FROM usuario WHERE nome_usuario = %s",
         (_normalizar(nome_usuario),),
@@ -57,20 +57,62 @@ def desbloquear(nome_usuario, senha_mestra):
 
 def adicionar_entrada(id_usuario, chave, titulo, senha,
                       usuario_servico=None, url=None, id_categoria=None):
-    """Cifra a senha e guarda a entrada no banco."""
+    """Cifra a senha e guarda a entrada no fim da lista."""
     senha_cifrada = cifrar(chave, senha)
+    # nova entrada vai para o fim da lista (maior ordem atual + 1)
+    r = db.consultar(
+        "SELECT COALESCE(MAX(ordem), 0) AS m FROM entrada WHERE id_usuario = %s",
+        (id_usuario,),
+    )
+    proxima = (r[0]["m"] or 0) + 1
     return db.executar(
-        "INSERT INTO entrada (id_usuario, id_categoria, titulo, "
-        "usuario_servico, url, senha_cifrada) VALUES (%s, %s, %s, %s, %s, %s)",
-        (id_usuario, id_categoria, titulo, usuario_servico, url, senha_cifrada),
+        "INSERT INTO entrada (id_usuario, id_categoria, titulo, usuario_servico, "
+        "url, senha_cifrada, ordem) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (id_usuario, id_categoria, titulo, usuario_servico, url, senha_cifrada, proxima),
     )
 
 
+def mover_para_cima(id_usuario, id_entrada):
+    """Troca a entrada de lugar com a que esta logo acima dela."""
+    atual = db.consultar(
+        "SELECT id, ordem FROM entrada WHERE id = %s AND id_usuario = %s",
+        (id_entrada, id_usuario),
+    )
+    if not atual:
+        return
+    ordem_atual = atual[0]["ordem"]
+    acima = db.consultar(
+        "SELECT id, ordem FROM entrada WHERE id_usuario = %s AND ordem < %s "
+        "ORDER BY ordem DESC LIMIT 1",
+        (id_usuario, ordem_atual),
+    )
+    if not acima:
+        return  # ja esta no topo
+    db.executar("UPDATE entrada SET ordem = %s WHERE id = %s", (acima[0]["ordem"], id_entrada))
+    db.executar("UPDATE entrada SET ordem = %s WHERE id = %s", (ordem_atual, acima[0]["id"]))
+
+
+def mover_para_topo(id_usuario, id_entrada):
+    """Coloca a entrada no topo da lista."""
+    dono = db.consultar(
+        "SELECT id FROM entrada WHERE id = %s AND id_usuario = %s",
+        (id_entrada, id_usuario),
+    )
+    if not dono:
+        return
+    r = db.consultar(
+        "SELECT COALESCE(MIN(ordem), 0) AS m FROM entrada WHERE id_usuario = %s",
+        (id_usuario,),
+    )
+    nova = (r[0]["m"] or 0) - 1
+    db.executar("UPDATE entrada SET ordem = %s WHERE id = %s", (nova, id_entrada))
+
+
 def listar_entradas(id_usuario, chave):
-    """Lista as entradas do usuario, decifrando a senha de cada uma."""
+    """Lista as entradas na ordem definida pelo usuario, decifrando as senhas."""
     linhas = db.consultar(
-        "SELECT id, titulo, usuario_servico, url, senha_cifrada "
-        "FROM entrada WHERE id_usuario = %s ORDER BY titulo",
+        "SELECT id, titulo, usuario_servico, url, senha_cifrada FROM entrada "
+        "WHERE id_usuario = %s ORDER BY ordem, id",
         (id_usuario,),
     )
     resultado = []
