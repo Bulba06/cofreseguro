@@ -59,7 +59,6 @@ def adicionar_entrada(id_usuario, chave, titulo, senha,
                       usuario_servico=None, url=None, id_categoria=None):
     """Cifra a senha e guarda a entrada no fim da lista."""
     senha_cifrada = cifrar(chave, senha)
-    # nova entrada vai para o fim da lista (maior ordem atual + 1)
     r = db.consultar(
         "SELECT COALESCE(MAX(ordem), 0) AS m FROM entrada WHERE id_usuario = %s",
         (id_usuario,),
@@ -70,6 +69,19 @@ def adicionar_entrada(id_usuario, chave, titulo, senha,
         "url, senha_cifrada, ordem) VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (id_usuario, id_categoria, titulo, usuario_servico, url, senha_cifrada, proxima),
     )
+
+
+def remover_entrada(id_usuario, id_entrada):
+    """Remove uma entrada do usuario. Apaga antes o historico dela, por causa
+    da chave estrangeira. So remove se a entrada for mesmo do usuario."""
+    dono = db.consultar(
+        "SELECT id FROM entrada WHERE id = %s AND id_usuario = %s",
+        (id_entrada, id_usuario),
+    )
+    if not dono:
+        return
+    db.executar("DELETE FROM historico_entrada WHERE id_entrada = %s", (id_entrada,))
+    db.executar("DELETE FROM entrada WHERE id = %s AND id_usuario = %s", (id_entrada, id_usuario))
 
 
 def mover_para_cima(id_usuario, id_entrada):
@@ -87,7 +99,7 @@ def mover_para_cima(id_usuario, id_entrada):
         (id_usuario, ordem_atual),
     )
     if not acima:
-        return  # ja esta no topo
+        return
     db.executar("UPDATE entrada SET ordem = %s WHERE id = %s", (acima[0]["ordem"], id_entrada))
     db.executar("UPDATE entrada SET ordem = %s WHERE id = %s", (ordem_atual, acima[0]["id"]))
 
