@@ -96,6 +96,19 @@ def mover():
     return jsonify({"ok": True})
 
 
+@app.route("/remover", methods=["POST"])
+def remover():
+    s = _sessao_atual()
+    if not s:
+        return jsonify({"erro": "Cofre bloqueado."}), 401
+    dados = request.get_json(silent=True) or {}
+    id_entrada = dados.get("id")
+    if not id_entrada:
+        return jsonify({"erro": "Entrada inválida."}), 400
+    cofre.remover_entrada(s["id_usuario"], id_entrada)
+    return jsonify({"ok": True})
+
+
 @app.route("/bloquear", methods=["POST"])
 def bloquear():
     token = session.pop("token", None)
