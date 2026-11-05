@@ -59,6 +59,8 @@
     }
     .entrada .senha code { background: #12151b; padding: 5px 9px; border-radius: 7px; letter-spacing: 1px; }
     .mini { flex: 0 0 auto; min-width: 0; padding: 5px 10px; font-size: .78rem; }
+    .perigo { color: var(--erro); border-color: var(--erro); }
+    .perigo:hover { background: rgba(255,107,107,.12); }
     .vazio { color: var(--sub); font-size: .88rem; margin-top: 12px; }
     #topo-cofre { display: flex; justify-content: space-between; align-items: center; }
     #topo-cofre button { flex: 0 0 auto; min-width: 0; padding: 7px 14px; }
@@ -188,6 +190,12 @@
       listar();
     }
 
+    async function remover(id, titulo) {
+      if (!confirm('Remover a senha "' + titulo + '"? Esta ação não pode ser desfeita.')) return;
+      await api("/remover", "POST", { id: id });
+      listar();
+    }
+
     async function listar() {
       const { ok, dados } = await api("/listar", "GET");
       const div = document.getElementById("lista");
@@ -207,6 +215,7 @@
           '<div class="ctrl">' +
           '<button class="sec mini" title="Mover para cima">↑</button>' +
           '<button class="sec mini" title="Mover para o topo">Topo</button>' +
+          '<button class="sec mini perigo" title="Remover">Remover</button>' +
           '</div></div>' +
           (meta ? '<div class="meta"></div>' : '') +
           '<div class="senha"><code>••••••••</code>' +
@@ -217,6 +226,7 @@
         const ctrl = card.querySelectorAll(".ctrl button");
         ctrl[0].onclick = () => mover(e.id, "cima");
         ctrl[1].onclick = () => mover(e.id, "topo");
+        ctrl[2].onclick = () => remover(e.id, e.titulo);
         const code = card.querySelector("code");
         const btns = card.querySelectorAll(".senha button");
         let visivel = false;
