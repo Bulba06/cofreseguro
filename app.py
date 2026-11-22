@@ -118,4 +118,8 @@ def bloquear():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    # debug controlado pelo .env; padrao False. Rodar com debug=True expoe o
+    # console do Werkzeug, que permite execucao de codigo arbitrario (CWE-94).
+    env = carregar_env()
+    debug = env.get("FLASK_DEBUG", "false").strip().lower() == "true"
+    app.run(debug=debug, port=5000)
