@@ -18,6 +18,26 @@ def _sessao_atual():
     return _sessoes.get(token) if token else None
 
 
+@app.after_request
+def aplicar_headers_seguranca(resposta):
+    # Cabecalhos de seguranca aplicados a TODAS as respostas.
+    resposta.headers["X-Content-Type-Options"] = "nosniff"   # impede MIME sniffing
+    resposta.headers["X-Frame-Options"] = "DENY"             # impede clickjacking
+    resposta.headers["Referrer-Policy"] = "no-referrer"
+    resposta.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    # CSP: so carrega recursos da propria origem (inline liberado por ora,
+    # pois o prototipo usa JS embutido no index.html).
+    resposta.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'"
+    )
+    # HSTS: instrui o navegador a so usar HTTPS (efetivo quando servido por TLS).
+    resposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # Nao guardar respostas do cofre em cache (contem senhas decifradas).
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
