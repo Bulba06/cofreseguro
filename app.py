@@ -1,22 +1,39 @@
 import os
 import secrets
+import time
 from flask import Flask, request, jsonify, session, render_template
 
 import cofre
 from config import carregar_env
 
 app = Flask(__name__)
+_env_inicial = carregar_env()
 # Chave de assinatura dos cookies de sessao (do .env, ou aleatoria se nao houver).
-app.secret_key = carregar_env().get("FLASK_SECRET_KEY") or secrets.token_hex(32)
+app.secret_key = _env_inicial.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 
-# Sessoes abertas: token -> {id_usuario, chave}. A chave derivada fica SO na
-# memoria do servidor, nunca no cookie do navegador.
+# Tempo maximo de inatividade antes de bloquear o cofre (minutos, do .env).
+_TIMEOUT_SEG = int(_env_inicial.get("SESSION_TIMEOUT_MIN", "15")) * 60
+
+# Sessoes abertas: token -> {id_usuario, chave, ultima_atividade}. A chave
+# derivada fica SO na memoria do servidor, nunca no cookie do navegador.
 _sessoes = {}
 
 
 def _sessao_atual():
     token = session.get("token")
-    return _sessoes.get(token) if token else None
+    if not token:
+        return None
+    s = _sessoes.get(token)
+    if not s:
+        return None
+    # Expira a sessao se passou do tempo de inatividade (bloqueia o cofre).
+    if time.time() - s.get("ultima_atividade", 0) > _TIMEOUT_SEG:
+        _sessoes.pop(token, None)
+        session.pop("token", None)
+        return None
+    # Atividade valida: renova a janela de inatividade.
+    s["ultima_atividade"] = time.time()
+    return s
 
 
 @app.after_request
@@ -68,6 +85,7 @@ def desbloquear():
     sessao = cofre.desbloquear(nome, senha)
     if not sessao:
         return jsonify({"erro": "Usuário ou senha-mestra inválidos."}), 401
+    sessao["ultima_atividade"] = time.time()
     token = secrets.token_hex(16)
     _sessoes[token] = sessao
     session["token"] = token
