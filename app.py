@@ -1,3 +1,4 @@
+import os
 import secrets
 from flask import Flask, request, jsonify, session, render_template
 
@@ -142,4 +143,15 @@ if __name__ == "__main__":
     # console do Werkzeug, que permite execucao de codigo arbitrario (CWE-94).
     env = carregar_env()
     debug = env.get("FLASK_DEBUG", "false").strip().lower() == "true"
-    app.run(debug=debug, port=5000)
+
+    # TLS/HTTPS: se houver certificado, sobe em HTTPS; senao, cai para HTTP
+    # (apenas desenvolvimento). Gere o certificado com: python gerar_cert.py
+    cert = env.get("TLS_CERT", "certs/cert.pem")
+    chave_tls = env.get("TLS_KEY", "certs/key.pem")
+    if os.path.exists(cert) and os.path.exists(chave_tls):
+        print("Rodando em HTTPS: https://localhost:5000")
+        app.run(debug=debug, port=5000, ssl_context=(cert, chave_tls))
+    else:
+        print("AVISO: certificado nao encontrado, rodando em HTTP (dev).")
+        print("Para HTTPS, rode antes: python gerar_cert.py")
+        app.run(debug=debug, port=5000)
