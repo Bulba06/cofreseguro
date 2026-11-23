@@ -103,7 +103,8 @@
           <button class="sec mini" onclick="gerarSenha()">Gerar</button>
         </div>
         <div class="linha">
-          <button onclick="adicionar()">Adicionar senha</button>
+          <button id="btn-salvar" onclick="salvar()">Adicionar senha</button>
+          <button id="btn-cancelar" class="sec oculto" onclick="cancelarEdicao()">Cancelar</button>
         </div>
         <div class="msg" id="msg-cofre"></div>
       </div>
@@ -167,22 +168,49 @@
       document.getElementById("in-senha").value = s;
     }
 
-    async function adicionar() {
+    let editandoId = null;
+
+    async function salvar() {
       const corpo = {
         titulo: document.getElementById("in-titulo").value,
         usuario_servico: document.getElementById("in-usuario-servico").value,
         senha: document.getElementById("in-senha").value,
       };
-      const { ok, dados } = await api("/adicionar", "POST", corpo);
+      let resp;
+      if (editandoId !== null) {
+        corpo.id = editandoId;
+        resp = await api("/editar", "POST", corpo);
+      } else {
+        resp = await api("/adicionar", "POST", corpo);
+      }
+      const { ok, dados } = resp;
       if (ok) {
-        msg("msg-cofre", "Senha adicionada!", "ok");
-        document.getElementById("in-titulo").value = "";
-        document.getElementById("in-usuario-servico").value = "";
-        document.getElementById("in-senha").value = "";
+        msg("msg-cofre", editandoId !== null ? "Entrada atualizada!" : "Senha adicionada!", "ok");
+        cancelarEdicao();
         listar();
       } else {
-        msg("msg-cofre", dados.erro || "Erro ao adicionar.", "erro");
+        msg("msg-cofre", dados.erro || "Erro ao salvar.", "erro");
       }
+    }
+
+    function editar(e) {
+      editandoId = e.id;
+      document.getElementById("in-titulo").value = e.titulo;
+      document.getElementById("in-usuario-servico").value = e.usuario_servico || "";
+      document.getElementById("in-senha").value = "";
+      document.getElementById("btn-salvar").textContent = "Salvar alteração";
+      document.getElementById("btn-cancelar").classList.remove("oculto");
+      msg("msg-cofre", 'Editando "' + e.titulo + '". Deixe a senha vazia para manter a atual.', "");
+      document.getElementById("in-titulo").focus();
+    }
+
+    function cancelarEdicao() {
+      editandoId = null;
+      document.getElementById("in-titulo").value = "";
+      document.getElementById("in-usuario-servico").value = "";
+      document.getElementById("in-senha").value = "";
+      document.getElementById("btn-salvar").textContent = "Adicionar senha";
+      document.getElementById("btn-cancelar").classList.add("oculto");
     }
 
     async function mover(id, direcao) {
@@ -215,6 +243,7 @@
           '<div class="ctrl">' +
           '<button class="sec mini" title="Mover para cima">↑</button>' +
           '<button class="sec mini" title="Mover para o topo">Topo</button>' +
+          '<button class="sec mini" title="Editar">Editar</button>' +
           '<button class="sec mini perigo" title="Remover">Remover</button>' +
           '</div></div>' +
           (meta ? '<div class="meta"></div>' : '') +
@@ -226,7 +255,8 @@
         const ctrl = card.querySelectorAll(".ctrl button");
         ctrl[0].onclick = () => mover(e.id, "cima");
         ctrl[1].onclick = () => mover(e.id, "topo");
-        ctrl[2].onclick = () => remover(e.id, e.titulo);
+        ctrl[2].onclick = () => editar(e);
+        ctrl[3].onclick = () => remover(e.id, e.titulo);
         const code = card.querySelector("code");
         const btns = card.querySelectorAll(".senha button");
         let visivel = false;
