@@ -59,6 +59,22 @@ def test_fluxo_completo_integracao():
         ordem = [e["titulo"] for e in cofre.listar_entradas(id_usuario, chave)]
         assert ordem[0] == "Banco"
 
+        # 5b. editar: muda o titulo de "Banco" (so metadados)
+        cofre.editar_entrada(id_usuario, ids["Banco"], "Banco Novo", chave=chave)
+        titulos = [e["titulo"] for e in cofre.listar_entradas(id_usuario, chave)]
+        assert "Banco Novo" in titulos
+
+        # 5c. editar: troca a senha de "Banco Novo" (dispara o historico)
+        cofre.editar_entrada(id_usuario, ids["Banco"], "Banco Novo",
+                             chave=chave, nova_senha="nova-senha-banco")
+        por_titulo = {e["titulo"]: e["senha"] for e in cofre.listar_entradas(id_usuario, chave)}
+        assert por_titulo["Banco Novo"] == "nova-senha-banco"
+
+        # 5d. buscar: encontra pelo termo e nao encontra o que nao existe
+        achados = cofre.buscar_entradas(id_usuario, chave, "banco")
+        assert any(e["titulo"] == "Banco Novo" for e in achados)
+        assert cofre.buscar_entradas(id_usuario, chave, "zzz-nao-existe") == []
+
         # 6. remover "Email"
         cofre.remover_entrada(id_usuario, ids["Email"])
         titulos = [e["titulo"] for e in cofre.listar_entradas(id_usuario, chave)]
