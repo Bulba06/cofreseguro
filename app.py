@@ -46,8 +46,9 @@ def aplicar_headers_seguranca(resposta):
     # CSP: so carrega recursos da propria origem (inline liberado por ora,
     # pois o prototipo usa JS embutido no index.html).
     resposta.headers["Content-Security-Policy"] = (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'"
+        "default-src 'self'; script-src 'self'; style-src 'self'; "
+        "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "
+        "form-action 'self'"
     )
     # HSTS: instrui o navegador a so usar HTTPS (efetivo quando servido por TLS).
     resposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
@@ -188,6 +189,12 @@ def bloquear():
 
 
 if __name__ == "__main__":
+    # Oculta a versao do servidor no header Server (anti-fingerprinting):
+    # sobrescreve o valor que o proprio servidor de desenvolvimento envia.
+    from werkzeug.serving import WSGIRequestHandler
+    WSGIRequestHandler.server_version = "CofreSeguro"
+    WSGIRequestHandler.sys_version = ""
+
     # debug controlado pelo .env; padrao False. Rodar com debug=True expoe o
     # console do Werkzeug, que permite execucao de codigo arbitrario (CWE-94).
     env = carregar_env()
