@@ -110,6 +110,26 @@ def adicionar():
     return jsonify({"ok": True})
 
 
+@app.route("/editar", methods=["POST"])
+def editar():
+    s = _sessao_atual()
+    if not s:
+        return jsonify({"erro": "Cofre bloqueado."}), 401
+    dados = request.get_json(silent=True) or {}
+    id_entrada = dados.get("id")
+    titulo = (dados.get("titulo") or "").strip()
+    if not id_entrada or not titulo:
+        return jsonify({"erro": "Preencha o titulo."}), 400
+    cofre.editar_entrada(
+        s["id_usuario"], id_entrada, titulo,
+        usuario_servico=(dados.get("usuario_servico") or "").strip() or None,
+        url=(dados.get("url") or "").strip() or None,
+        chave=s["chave"],
+        nova_senha=(dados.get("senha") or "") or None,
+    )
+    return jsonify({"ok": True})
+
+
 @app.route("/listar")
 def listar():
     s = _sessao_atual()
