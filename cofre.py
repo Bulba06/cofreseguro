@@ -71,6 +71,32 @@ def adicionar_entrada(id_usuario, chave, titulo, senha,
     )
 
 
+def editar_entrada(id_usuario, id_entrada, titulo, usuario_servico=None,
+                   url=None, chave=None, nova_senha=None):
+    """Edita uma entrada do usuario. Se nova_senha for informada, re-cifra a
+    senha (o que dispara o trigger de historico da senha antiga). Se nao, mexe
+    so nos metadados. So edita se a entrada for mesmo do usuario."""
+    dono = db.consultar(
+        "SELECT id FROM entrada WHERE id = %s AND id_usuario = %s",
+        (id_entrada, id_usuario),
+    )
+    if not dono:
+        return
+    if nova_senha:
+        senha_cifrada = cifrar(chave, nova_senha)
+        db.executar(
+            "UPDATE entrada SET titulo = %s, usuario_servico = %s, url = %s, "
+            "senha_cifrada = %s WHERE id = %s AND id_usuario = %s",
+            (titulo, usuario_servico, url, senha_cifrada, id_entrada, id_usuario),
+        )
+    else:
+        db.executar(
+            "UPDATE entrada SET titulo = %s, usuario_servico = %s, url = %s "
+            "WHERE id = %s AND id_usuario = %s",
+            (titulo, usuario_servico, url, id_entrada, id_usuario),
+        )
+
+
 def remover_entrada(id_usuario, id_entrada):
     """Remove uma entrada do usuario. Apaga antes o historico dela, por causa
     da chave estrangeira. So remove se a entrada for mesmo do usuario."""
