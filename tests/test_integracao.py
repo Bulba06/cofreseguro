@@ -86,3 +86,39 @@ def test_fluxo_completo_integracao():
                 db.executar("DELETE FROM historico_entrada WHERE id_entrada = %s", (e["id"],))
             db.executar("DELETE FROM entrada WHERE id_usuario = %s", (id_usuario,))
             db.executar("DELETE FROM usuario WHERE id = %s", (id_usuario,))
+
+
+@pytest.mark.skipif(not _banco_disponivel(), reason="MySQL nao disponivel")
+def test_isolamento_entre_usuarios():
+    # Um usuario nao pode editar nem remover a entrada de outro.
+    nome_a = "teste_a_" + secrets.token_hex(4)
+    nome_b = "teste_b_" + secrets.token_hex(4)
+    senha = "Senha!" + secrets.token_hex(2)
+    ida = idb = None
+    try:
+        cofre.criar_usuario(nome_a, senha)
+        cofre.criar_usuario(nome_b, senha)
+        sa = cofre.desbloquear(nome_a, senha)
+        sb = cofre.desbloquear(nome_b, senha)
+        ida, idb = sa["id_usuario"], sb["id_usuario"]
+
+        cofre.adicionar_entrada(sa["id_usuario"], sa["chave"], "Segredo A", "senha-a")
+        entrada_a = cofre.listar_entradas(sa["id_usuario"], sa["chave"])[0]
+
+        # B tenta remover a entrada de A -> nao deve sumir
+        cofre.remover_entrada(sb["id_usuario"], entrada_a["id"])
+        ids_a = [e["id"] for e in cofre.listar_entradas(sa["id_usuario"], sa["chave"])]
+        assert entrada_a["id"] in ids_a
+
+        # B tenta editar a entrada de A -> titulo de A nao muda
+        cofre.editar_entrada(sb["id_usuario"], entrada_a["id"], "Hackeado", chave=sb["chave"])
+        titulo = cofre.listar_entradas(sa["id_usuario"], sa["chave"])[0]["titulo"]
+        assert titulo == "Segredo A"
+    finally:
+        for uid in (ida, idb):
+            if uid is not None:
+                for e in db.consultar("SELECT id FROM entrada WHERE id_usuario = %s", (uid,)):
+                    db.executar("DELETE FROM historico_entrada WHERE id_entrada = %s", (e["id"],))
+                db.executar("DELETE FROM entrada WHERE id_usuario = %s", (uid,))
+                db.executar("DELETE FROM usuario WHERE id = %s", (uid,))
+
