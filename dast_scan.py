@@ -76,4 +76,28 @@ payload = {"nome_usuario": "admin' OR '1'='1", "senha_mestra": "x' OR '1'='1"}
 status, _ = _req("/desbloquear", "POST", payload)
 _check("Payload de injection rejeitado (status %s)" % status, status == 401)
 
+# 4) Cookie de sessao forjado nao deve dar acesso
+print("\n4) Cookie de sessao forjado (esperado 401)")
+_rf = urllib.request.Request(BASE + "/listar", method="GET")
+_rf.add_header("Cookie", "session=forjado-invalido-123")
+try:
+    _st = urllib.request.urlopen(_rf, context=_ctx, timeout=10).status
+except urllib.error.HTTPError as e:
+    _st = e.code
+_check("GET /listar com cookie forjado -> %s" % _st, _st == 401)
+
+# 5) Metodo HTTP nao permitido
+print("\n5) Metodo HTTP invalido (esperado 405)")
+_st, _ = _req("/adicionar", "GET")
+_check("GET /adicionar (so aceita POST) -> %s" % _st, _st == 405)
+
+# 6) Sem vazamento de stack trace (debug desligado)
+print("\n6) Rota inexistente nao vaza stack trace (debug off)")
+try:
+    _r = urllib.request.urlopen(urllib.request.Request(BASE + "/naoexiste"), context=_ctx, timeout=10)
+    _corpo, _st = _r.read().decode(errors="ignore"), _r.status
+except urllib.error.HTTPError as e:
+    _corpo, _st = e.read().decode(errors="ignore"), e.code
+_check("GET /naoexiste -> %s sem 'Traceback'" % _st, _st == 404 and "Traceback" not in _corpo)
+
 print("\n== Resultado: %d OK, %d falha(s) ==" % (_ok, _falhas))
