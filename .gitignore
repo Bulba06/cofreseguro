@@ -10,3 +10,8 @@ venv/
 .idea/
 .DS_Store
 certs/
+
+# Arquivos de cobertura de testes
+.coverage
+.coverage.*
+htmlcov/
