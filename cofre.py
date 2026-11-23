@@ -163,3 +163,26 @@ def listar_entradas(id_usuario, chave):
             "senha": decifrar(chave, bytes(linha["senha_cifrada"])),
         })
     return resultado
+
+
+def buscar_entradas(id_usuario, chave, termo):
+    """Busca entradas do usuario cujo titulo, usuario do servico ou url
+    contenham o termo. Usa consulta parametrizada com LIKE (imune a SQL
+    injection) e decifra as senhas das entradas encontradas."""
+    like = "%" + (termo or "") + "%"
+    linhas = db.consultar(
+        "SELECT id, titulo, usuario_servico, url, senha_cifrada FROM entrada "
+        "WHERE id_usuario = %s AND (titulo LIKE %s OR usuario_servico LIKE %s "
+        "OR url LIKE %s) ORDER BY ordem, id",
+        (id_usuario, like, like, like),
+    )
+    resultado = []
+    for linha in linhas:
+        resultado.append({
+            "id": linha["id"],
+            "titulo": linha["titulo"],
+            "usuario_servico": linha["usuario_servico"],
+            "url": linha["url"],
+            "senha": decifrar(chave, bytes(linha["senha_cifrada"])),
+        })
+    return resultado
