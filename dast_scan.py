@@ -31,7 +31,7 @@ def _req(caminho, metodo="GET", corpo=None):
     if data:
         r.add_header("Content-Type", "application/json")
     try:
-        resp = urllib.request.urlopen(r, context=_ctx, timeout=10)
+        resp = urllib.request.urlopen(r, context=_ctx, timeout=10)  # nosec B310 - URL fixa (localhost); script de teste
         return resp.status, dict(resp.headers)
     except urllib.error.HTTPError as e:
         return e.code, dict(e.headers)
@@ -81,7 +81,7 @@ print("\n4) Cookie de sessao forjado (esperado 401)")
 _rf = urllib.request.Request(BASE + "/listar", method="GET")
 _rf.add_header("Cookie", "session=forjado-invalido-123")
 try:
-    _st = urllib.request.urlopen(_rf, context=_ctx, timeout=10).status
+    _st = urllib.request.urlopen(_rf, context=_ctx, timeout=10).status  # nosec B310 - URL fixa (localhost); script de teste
 except urllib.error.HTTPError as e:
     _st = e.code
 _check("GET /listar com cookie forjado -> %s" % _st, _st == 401)
@@ -94,7 +94,7 @@ _check("GET /adicionar (so aceita POST) -> %s" % _st, _st == 405)
 # 6) Sem vazamento de stack trace (debug desligado)
 print("\n6) Rota inexistente nao vaza stack trace (debug off)")
 try:
-    _r = urllib.request.urlopen(urllib.request.Request(BASE + "/naoexiste"), context=_ctx, timeout=10)
+    _r = urllib.request.urlopen(urllib.request.Request(BASE + "/naoexiste"), context=_ctx, timeout=10)  # nosec B310 - URL fixa (localhost); script de teste
     _corpo, _st = _r.read().decode(errors="ignore"), _r.status
 except urllib.error.HTTPError as e:
     _corpo, _st = e.read().decode(errors="ignore"), e.code
